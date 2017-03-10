@@ -6,6 +6,8 @@ import {sync as globSync, IOptions} from "glob";
 import { cwd } from "process";
 import * as Yargs from "yargs";
 import { green } from "colors";
+import { filter } from "minimatch";
+import { EOL } from "os";
 
 interface ILang {
 	lang: string;
@@ -63,11 +65,16 @@ const processSingleFile = (filePath: string, langs: ILang[]) => {
 	});
 };
 
-const getMatchFiles = (fileMatches= "**/*.+(ts|tsx|js|jsx)", baseDir= cwd()) => {
+const getMatchFiles = (fileMatches: string, baseDir: string) => {
 	const options: IOptions = {
 		cwd: baseDir
 	};
 	return globSync(fileMatches, options);
+};
+
+const getStashFiles = (fileMatches: string, baseDir: string) => {
+	const result = execSync("git status -s", {cwd: baseDir});
+	return result.toString().split(EOL).filter((path) => path !== "").map((path) => path.slice(3)).filter(filter(fileMatches));
 };
 
 
@@ -79,8 +86,8 @@ const langs = [
 ];
 
 const doProcess = (filesMatches= "**/*.+(ts|tsx|js|jsx)", baseDir= cwd(), useGitStatusFiles= false) => {
-	const files = useGitStatusFiles ? [] : getMatchFiles(filesMatches, baseDir);
-	files.map((filePath) => join(baseDir, filePath)).forEach((filePath) => {
+	const files = (useGitStatusFiles ? getStashFiles(filesMatches, baseDir) : getMatchFiles(filesMatches, baseDir)).map((filePath) => join(baseDir, filePath));
+	files.forEach((filePath) => {
 		processSingleFile(filePath, langs);
 	});
 };
@@ -91,9 +98,9 @@ const argv = Yargs.usage("Usage: $0 [options]")
 	.describe("f", "Load File Matches Use minimatch style.")
 	.alias("d", "search directory")
 	.describe("f", "Search files from these directories.")
-	.boolean("g")
-	.alias("g", "use git status files")
-	.describe("g", "Search files only in git status outputs.")
+	.boolean("s")
+	.alias("s", "use git status -s files")
+	.describe("s", "Search files only in git status outputs.")
 	.help("h")
 	.alias("h", "help")
 	.argv;

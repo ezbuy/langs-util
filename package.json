@@ -1,9 +1,13 @@
 {
+  "bin": {
+    "poGenerator": "./lib/poGenerator"
+  },
   "dependencies": {
     "@types/mkdirp": "^0.3.29",
     "@types/yargs": "^6.6.0",
     "colors": "^1.1.2",
     "glob": "^7.1.1",
+    "minimatch": "^3.0.3",
     "mkdirp": "^0.5.1",
     "typescript": "^2.2.1",
     "yargs": "^7.0.1"
@@ -11,6 +15,7 @@
   "devDependencies": {
     "@types/colors": "^1.1.1",
     "@types/glob": "^5.0.30",
+    "@types/minimatch": "^2.0.29",
     "tslint": "^4.5.1"
   },
   "scripts": {

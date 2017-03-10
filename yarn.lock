@@ -13,7 +13,7 @@
     "@types/minimatch" "*"
     "@types/node" "*"
 
-"@types/minimatch@*":
+"@types/minimatch@*", "@types/minimatch@^2.0.29":
   version "2.0.29"
   resolved "https://r.cnpmjs.org/@types/minimatch/download/@types/minimatch-2.0.29.tgz#5002e14f75e2d71e564281df0431c8c1b4a2a36a"
 
@@ -387,7 +387,7 @@ lru-cache@^4.0.0:
     pseudomap "^1.0.1"
     yallist "^2.0.0"
 
-"minimatch@2 || 3", minimatch@^3.0.2:
+"minimatch@2 || 3", minimatch@^3.0.2, minimatch@^3.0.3:
   version "3.0.3"
   resolved "https://r.cnpmjs.org/minimatch/download/minimatch-3.0.3.tgz#2a4e4090b96b2db06a9d7df01055a62a77c9b774"
   dependencies:
