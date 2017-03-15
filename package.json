@@ -3,7 +3,7 @@
   "version": "1.1.0",
   "main": "./lib/index.js",
   "bin": {
-    "langs-util": "./lib/index.js"
+    "langs-util": "./bin/langs-util"
   },
   "dependencies": {
     "@types/mkdirp": "^0.3.29",
