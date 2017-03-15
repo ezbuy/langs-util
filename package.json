@@ -1,4 +1,7 @@
 {
+  "name": "langs-util",
+  "version": "1.1.0",
+  "main": "./lib/index.js",
   "bin": {
     "langs-util": "./lib/index.js"
   },
