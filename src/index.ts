@@ -1,13 +1,14 @@
 import { execSync } from "child_process";
-import {access, constants, readFileSync, writeFileSync} from "fs";
-import {dirname, basename, join, extname} from "path";
-import {sync as mkdirpSync} from "mkdirp";
-import {sync as globSync, IOptions} from "glob";
+import { access, constants, readFileSync, writeFileSync, readdirSync } from "fs";
+import { dirname, basename, join, extname } from "path";
+import { sync as mkdirpSync } from "mkdirp";
+import { sync as globSync, IOptions } from "glob";
 import { cwd } from "process";
 import * as Yargs from "yargs";
 import { green } from "colors";
 import { filter } from "minimatch";
 import { EOL } from "os";
+import * as rimraf from "rimraf";
 
 interface ILang {
 	lang: string;
@@ -57,6 +58,10 @@ const processSingleFile = (filePath: string, langs: ILang[]) => {
 							}
 						});
 					});
+				}else {
+					if (readdirSync(poFileDir).length === 0) {
+						rimraf.sync(poFileDir);
+					}
 				}
 			});
 		}
