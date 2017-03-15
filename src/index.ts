@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 import { access, constants, readFileSync, writeFileSync, readdirSync, createReadStream, createWriteStream } from "fs";
-import { dirname, basename, join, extname, sep } from "path";
+import { dirname, basename, join, extname, sep, resolve } from "path";
 import { sync as mkdirpSync } from "mkdirp";
 import { sync as globSync, IOptions } from "glob";
 import { cwd } from "process";
@@ -86,17 +86,41 @@ const doGenLangs = (filesMatches= "**/*.+(ts|tsx|js|jsx)", baseDir= cwd(), useGi
 	});
 };
 
-const doPackLangs = (output: string, baseDir= cwd(), langs = defaultLangs) => {
+const copySingleFile = (srcFilePath: string, destFilePath: string) => {
+	createReadStream(srcFilePath).pipe(createWriteStream(destFilePath));
+};
+
+const doPackLangs = (output: string, baseDir= cwd(), langs= defaultLangs) => {
 	const poFiles =  globSync(`**/langs/*.+(${langs.join("|")}).po`, {cwd: baseDir});
 	const outDirAlreadyCreated: {[key: string]: boolean} = {};
 
 	poFiles.forEach((path) => {
-		const outDirPath = join(baseDir, output, dirname(path).split(sep).reverse().join("."));
+		const srcFilename = join(baseDir, path);
+		const destDirname = dirname(path).split(sep).reverse().join(".");
+		const outDirPath = join(resolve(output), destDirname);
 		if (!outDirAlreadyCreated[outDirPath]) {
 			outDirAlreadyCreated[outDirPath] = true;
 			mkdirpSync(outDirPath);
 		}
-		createReadStream(join(baseDir, path)).pipe(createWriteStream(join(outDirPath, basename(path))));
+		copySingleFile(srcFilename, join(outDirPath, basename(path)));
+		console.log(`[copy] ${green(srcFilename)} to ${green(destDirname)}`);
+	});
+};
+
+const doRepackLangs = (input: string, baseDir= cwd(), langs= defaultLangs) => {
+	const inputBase = resolve(input);
+	const dirs = readdirSync(inputBase);
+	dirs.forEach((dirName) => {
+		const poFiles = globSync(`*.+(${langs.join("|")}).po`, {cwd: join(inputBase, dirName)});
+		if (poFiles.length > 0) {
+			const resultDirPath = join(baseDir, ...dirName.split(".").reverse());
+			mkdirpSync(resultDirPath);
+			poFiles.forEach((filename) => {
+				const destFilename = join(resultDirPath, filename);
+				copySingleFile(join(inputBase, dirName, filename), destFilename);
+				console.log(`[copy] ${green(join(dirName, filename))} to ${green(destFilename)}`);
+			});
+		}
 	});
 };
 
@@ -116,7 +140,7 @@ Yargs.usage("Usage: [command] $0 [options]")
 	}, (argv) => {
 		doGenLangs(argv.f, argv.d, argv.g, argv.l);
 	})
-	.command("langspack", "get langs pack from source code", (yargs) => {
+	.command("pack", "get langs pack from source code", (yargs) => {
 		return yargs
 				.alias("o", "output")
 				.describe("o", "output path")
@@ -124,6 +148,15 @@ Yargs.usage("Usage: [command] $0 [options]")
 				.argv;
 	}, (argv) => {
 		doPackLangs(argv.o, argv.d, argv.l);
+	})
+	.command("repack", "put langs pack to source code", (yargs) => {
+		return yargs
+				.alias("i", "input")
+				.describe("i", "input path")
+				.demandOption(["i"])
+				.argv;
+	}, (argv) => {
+		doRepackLangs(argv.i, argv.d, argv.l);
 	})
 	.argv;
 
