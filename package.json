@@ -1,6 +1,6 @@
 {
   "bin": {
-    "poGenerator": "./lib/poGenerator"
+    "langs-util": "./lib/index.js"
   },
   "dependencies": {
     "@types/mkdirp": "^0.3.29",
