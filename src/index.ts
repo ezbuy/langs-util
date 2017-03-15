@@ -1,14 +1,12 @@
 import { execSync } from "child_process";
-import { access, constants, readFileSync, writeFileSync, readdirSync, createReadStream, createWriteStream } from "fs";
+import { access, constants, readFileSync, writeFileSync, readdirSync, createReadStream, createWriteStream, statSync } from "fs";
 import { dirname, basename, join, extname, sep, resolve } from "path";
 import { sync as mkdirpSync } from "mkdirp";
-import { sync as globSync, IOptions } from "glob";
+import { sync as globSync } from "glob";
 import { cwd } from "process";
 import * as Yargs from "yargs";
 import { green } from "colors";
-import { filter } from "minimatch";
-import { EOL } from "os";
-import * as rimraf from "rimraf";
+import { sync as rmSync } from "rimraf";
 
 const defaultLangs = ["en", "th", "my", "id"];
 
@@ -27,6 +25,30 @@ const execOnlyErrorOutput = (command: string) => {
 	execSync(command, {stdio: ["ignore", "ignore", "pipe"]});
 };
 
+const genPoFiles = (inputFilePaths: string | string[], potFilePath: string, langs: string[]) => {
+	const potDirName = dirname(potFilePath);
+	const filename = basename(potFilePath, extname(potFilePath));
+	const filePaths = typeof inputFilePaths === "string" ? inputFilePaths : inputFilePaths.join(" ");
+	execOnlyErrorOutput(`xgettext --language=JavaScript --add-comments --sort-output --from-code=UTF-8 --no-location --msgid-bugs-address=wanglin@ezbuy.com -o ${potFilePath} ${filePaths}`);
+
+	checkFileExists(potFilePath).then((ifPotFileExists) => {
+		if (ifPotFileExists) {
+			console.log(green(potFilePath));
+			writeFileSync(potFilePath, readFileSync(potFilePath).toString().replace("charset=CHARSET", "charset=UTF-8"));
+			langs.forEach((lang) => {
+				const poFilePath = join(potDirName, `${filename}${lang === "" ? "" : `.${lang}` }.po`);
+				checkFileExists(poFilePath).then((ifExists) => {
+					if (ifExists) {
+						execOnlyErrorOutput(`msgmerge --output-file=${poFilePath} ${poFilePath} ${potFilePath}`);
+					}else {
+						execOnlyErrorOutput(`msginit --no-translator --input=${potFilePath} --locale=${lang} --output=${poFilePath}`);
+					}
+				});
+			});
+		}
+	});
+};
+
 const processSingleFile = (filePath: string, langs: string[]) => {
 	checkFileExists(filePath).then((flag) => {
 		return flag ? readFileSync(filePath).includes("gettext") : false;
@@ -36,54 +58,38 @@ const processSingleFile = (filePath: string, langs: string[]) => {
 			const filename = basename(filePath, extname(filePath));
 			const poFileDir = join(dir, "langs");
 			const potFilePath = join(poFileDir, `${filename}.pot`);
-
 			mkdirpSync(poFileDir);
-
-			execOnlyErrorOutput(`xgettext --language=JavaScript --add-comments --sort-output --from-code=UTF-8 --no-location --msgid-bugs-address=wanglin@ezbuy.com -o ${potFilePath} ${filePath}`);
-
-			checkFileExists(potFilePath).then((ifPotFileExists) => {
-				if (ifPotFileExists) {
-					console.log(green(filePath));
-					writeFileSync(potFilePath, readFileSync(potFilePath).toString().replace("charset=CHARSET", "charset=UTF-8"));
-					langs.forEach((lang) => {
-						const poFilePath = join(poFileDir, `${filename}${lang === "" ? "" : `.${lang}` }.po`);
-						checkFileExists(poFilePath).then((ifExists) => {
-							if (ifExists) {
-								execOnlyErrorOutput(`msgmerge --output-file=${poFilePath} ${poFilePath} ${potFilePath}`);
-							}else {
-								execOnlyErrorOutput(`msginit --no-translator --input=${potFilePath} --locale=${lang} --output=${poFilePath}`);
-							}
-						});
-					});
-				}else {
-					if (readdirSync(poFileDir).length === 0) {
-						rimraf.sync(poFileDir);
-					}
-				}
-			});
+			genPoFiles(filePath, potFilePath, langs);
+			if (readdirSync(poFileDir).length === 0) {
+				rmSync(poFileDir);
+			}
 		}
 	}).catch((e) => {
 		console.error(e);
 	});
 };
 
-const getMatchFiles = (fileMatches: string, baseDir: string) => {
-	const options: IOptions = {
-		cwd: baseDir
-	};
-	return globSync(fileMatches, options);
+const getMatchFiles = (fileMatches: string, files: string[]) => {
+	return files.reduce<string[]>((pValue, cValue) => {
+		const currentPath = resolve(cValue);
+		if (statSync(resolve(currentPath)).isDirectory()) {
+			return [...pValue, ...globSync(fileMatches, {cwd: currentPath}).map((path) => (join(currentPath, path)))];
+		}
+		return [...pValue, resolve(cValue)];
+	}, []);
 };
 
-const getStashFiles = (fileMatches: string, baseDir: string) => {
-	const result = execSync("git status -s", {cwd: baseDir});
-	return result.toString().split(EOL).filter((path) => path !== "").map((path) => path.slice(3)).filter(filter(fileMatches));
-};
-
-const doGenLangs = (filesMatches= "**/*.+(ts|tsx|js|jsx)", baseDir= cwd(), useGitStatusFiles= false, langs= defaultLangs) => {
-	const files = (useGitStatusFiles ? getStashFiles(filesMatches, baseDir) : getMatchFiles(filesMatches, baseDir)).map((filePath) => join(baseDir, filePath));
-	files.forEach((filePath) => {
-		processSingleFile(filePath, langs);
-	});
+const doGenLangs = (filesMatches= "**/*.+(ts|tsx|js|jsx)", inputFiles= [cwd()], langs= defaultLangs, specialFile?: string) => {
+	const files = getMatchFiles(filesMatches, inputFiles);
+	if (typeof specialFile === "undefined") {
+		files.forEach((filePath) => {
+			processSingleFile(filePath, langs);
+		});
+	} else {
+		specialFile = resolve(specialFile);
+		mkdirpSync(dirname(specialFile));
+		genPoFiles(files, resolve(specialFile), langs);
+	}
 };
 
 const copySingleFile = (srcFilePath: string, destFilePath: string) => {
@@ -131,14 +137,17 @@ Yargs.usage("Usage: [command] $0 [options]")
 	.array("l")
 	.alias("l", "generate locales default is en th my id")
 	.command("gen", "generate language files for special path", (yargs) => {
-		return yargs.alias("f", "file matches")
-				.describe("f", "Load File Matches Use minimatch style.")
-				.boolean("s")
-				.alias("s", "use git status -s files")
-				.describe("s", "Search files only in git status outputs.")
+		return yargs
+				.array("i")
+				.alias("i", "input files")
+				.describe("i", "Files or Directories to generate po files")
+				.alias("f", "file matches")
+				.describe("f", "Load File Matches Use minimatch style")
+				.alias("s", "special file")
+				.describe("s", "A Path to the special pot file")
 				.argv;
 	}, (argv) => {
-		doGenLangs(argv.f, argv.d, argv.g, argv.l);
+		doGenLangs(argv.f, argv.i, argv.l, argv.s);
 	})
 	.command("pack", "get langs pack from source code", (yargs) => {
 		return yargs
