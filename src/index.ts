@@ -8,7 +8,7 @@ import * as Yargs from "yargs";
 import { green } from "colors";
 import { sync as rmSync } from "rimraf";
 
-const defaultLangs = ["en", "th", "my", "id"];
+const defaultLangs = ["en", "th", "ms", "id"];
 
 const checkFileExists = (filePath: string) => {
 	return new Promise((resolve) => {
