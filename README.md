@@ -6,7 +6,8 @@ langs-util 是ezbuy多语言处理的一套工具集，它能够发现指定文�
 ### xgettext 依赖安装
 
 ```shell
-brew install xgettext
+brew install gettext
+brew link gettext
 ```
 
 ### 安装
