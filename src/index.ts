@@ -88,7 +88,7 @@ const doGenLangs = (filesMatches= "**/*.+(ts|tsx|js|jsx)", inputFiles= [cwd()], 
 	} else {
 		specialFile = resolve(specialFile);
 		mkdirpSync(dirname(specialFile));
-		genPoFiles(files, resolve(specialFile), langs);
+		genPoFiles(files, specialFile, langs);
 	}
 };
 
@@ -135,7 +135,7 @@ Yargs.usage("Usage: [command] $0 [options]")
 	.alias("d", "search directory")
 	.describe("d", "Search files from the directory.")
 	.array("l")
-	.alias("l", "generate locales default is en th my id")
+	.alias("l", "generate locales default is en th ms id")
 	.command("gen", "generate language files for special path", (yargs) => {
 		return yargs
 				.array("i")
